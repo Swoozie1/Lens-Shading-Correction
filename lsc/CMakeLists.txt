@@ -1,0 +1,1 @@
+add_executable(lsc lsc.cpp)
