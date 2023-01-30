@@ -6,6 +6,7 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb/stb_image_resize.h"
 #include <vector>
+#include <fstream>
 const int blocksForWidth = 13;
 const int blocksForHeight = 17;
 struct Block
@@ -48,8 +49,8 @@ public:
 struct LSC
 {
     void genValues(Image &image);
-    void saveValues();
-    void loadValues();
+    void saveValues(const Image &image);
+    void loadValues(Image &image);
     void applyValues();
 };
 
@@ -75,28 +76,75 @@ void fillImageData(Image &image)
 
 void LSC::genValues(Image &image)
 {
-
+    int count = 0;
     for (int i = 0; i < blocksForHeight * blocksForWidth; i++)
     {
         float sumRed = 0.0;
         float sumGreen = 0.0;
         float sumBlue = 0.0;
-        int count = 0;
-        for (int j = 0; j < image.blockWidth * image.blockHeight; j++, count++)
+        int y = 0;
+        for (int j = 0; j < image.blockWidth * image.blockHeight; j++, y++)
         {
-
-            if (count == image.blockWidth)
+            int possition = 0;
+            if (count == 0)
             {
-                        }
+                possition = j + (i * image.blockWidth);
+            }
+            else
+            {
+                possition = (j + ((image.width * count) - image.blockWidth));
+            }
+            if (y == image.blockWidth && count <= image.blockHeight)
+            {
+                count++;
+                y = 0;
+            }
+            else
+            {
+                count = 0;
+            }
 
-            sumRed += image.input[j].e[0];
-            sumGreen += image.input[j].e[1];
-            sumBlue += image.input[j].e[2];
+            sumRed += image.input[possition].e[0];
+            sumGreen += image.input[possition].e[1];
+            sumBlue += image.input[possition].e[2];
         }
         sumRed = sumRed / float(image.blockHeight * image.blockWidth);
         sumGreen = sumGreen / float(image.blockHeight * image.blockWidth);
         sumBlue = sumBlue / float(image.blockHeight * image.blockWidth);
-        image.blocks.push_back({sumRed, (sumGreen / sumRed), (sumGreen / sumBlue), sumBlue});
+        image.blocks.push_back({(sumRed / 100), (sumGreen / sumRed), (sumGreen / sumBlue), (sumBlue / 100)});
+    }
+}
+void LSC::saveValues(const Image &image)
+{
+    std::fstream writeFile;
+    writeFile.open("../genValues.txt", std::ios::out);
+    if (!writeFile)
+    {
+        printf("File not opened");
+    }
+    else
+    {
+        for (int i = 0; i <= image.blocks.size() - 1; i++)
+        {
+            writeFile << image.blocks[i].values[0] << " " << image.blocks[i].values[1] << " " << image.blocks[i].values[2] << " " << image.blocks[i].values[3] << std::endl;
+        }
+    }
+    writeFile.close();
+}
+void LSC::loadValues(Image &image)
+{
+    std::fstream readFile;
+    readFile.open("../genValues.txt", std::ios::in);
+    if (!readFile)
+    {
+        printf("File not opened");
+    }
+    else
+    {
+        std::string str = "";
+        while (readFile >> str)
+        {
+        }
     }
 }
 int main()
@@ -119,15 +167,9 @@ int main()
     fclose(file);
     LSC lsc;
     lsc.genValues(image);
-    // for (int i = 0; i < 1; i++)
-    // {
-    //     float sum = 0;
-    //     for (int j = 0; j < image.blockWidth; j += 3)
-    //     {
-    //         sum += img[j];
-    //     }
-    //     sum = sum / float(image.blockHeight * image.blockWidth);
-    //     printf("%f", sum);
-    // }
+    lsc.saveValues(image);
+    image.blocks.clear();
+    lsc.loadValues(image);
+
     return 0;
 }
