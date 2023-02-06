@@ -50,8 +50,8 @@ struct LSC
 {
     void genValues(Image &image);
     void saveValues(const Image &image);
-    void loadValues(Image &image);
-    void applyValues();
+    void loadValues(Image &image, Block &block);
+    void applyValues(Image &image);
 };
 
 void fillImageData(Image &image)
@@ -63,45 +63,43 @@ void fillImageData(Image &image)
     unsigned char g = 0;
     unsigned char b = 0;
     for (int i = 0; i < image.width * image.height; i++)
-    // for (int i = 0; i < image.width; i++)
     {
         r = image.dataBuffer[offset + 0];
         g = image.dataBuffer[offset + 1];
         b = image.dataBuffer[offset + 2];
-        // sscanf((char *)&image.dataBuffer[offset], "%c %c %c%n", &r, &g, &b, &megaOffset);
         image.input.push_back({r, g, b});
         offset += 3;
     }
-} // FILE *file,
+}
 
 void LSC::genValues(Image &image)
 {
-    int count = 0;
+    int newlineCounter = 0;
     for (int i = 0; i < blocksForHeight * blocksForWidth; i++)
     {
         float sumRed = 0.0;
         float sumGreen = 0.0;
         float sumBlue = 0.0;
-        int y = 0;
-        for (int j = 0; j < image.blockWidth * image.blockHeight; j++, y++)
+        int pixelsPerRow = 0;
+        for (int j = 0; j < image.blockWidth * image.blockHeight; j++, pixelsPerRow++)
         {
             int possition = 0;
-            if (count == 0)
+            if (newlineCounter == 0)
             {
                 possition = j + (i * image.blockWidth);
             }
             else
             {
-                possition = (j + ((image.width * count) - image.blockWidth));
+                possition = (j + ((image.width * newlineCounter) - image.blockWidth));
             }
-            if (y == image.blockWidth && count <= image.blockHeight)
+            if (pixelsPerRow == image.blockWidth && newlineCounter <= image.blockHeight)
             {
-                count++;
-                y = 0;
+                newlineCounter++;
+                pixelsPerRow = 0;
             }
             else
             {
-                count = 0;
+                newlineCounter = 0;
             }
 
             sumRed += image.input[possition].e[0];
@@ -131,7 +129,7 @@ void LSC::saveValues(const Image &image)
     }
     writeFile.close();
 }
-void LSC::loadValues(Image &image)
+void LSC::loadValues(Image &image, Block &block)
 {
     std::fstream readFile;
     readFile.open("../genValues.txt", std::ios::in);
@@ -142,34 +140,74 @@ void LSC::loadValues(Image &image)
     else
     {
         std::string str = "";
+        int count = 0;
         while (readFile >> str)
         {
+            block.values[count] = std::stof(str);
+            count++;
+            if (count == 4)
+            {
+                image.blocks.push_back(block);
+                count = 0;
+            }
         }
+    }
+}
+void LSC::applyValues(Image &image)
+{
+    int count = 0;
+    int possition = 0;
+    int pixelOnRow = 0;
+    int blocksFilled = 0;
+    for (int i = 0; i <= image.width * image.height; pixelOnRow++)
+    {
+        if (blocksFilled == 0 && count == 0)
+        {
+            possition = (pixelOnRow + (count * image.width));
+        }
+        if (count == 0 && blocksFilled != 0)
+        {
+            possition = (i + (count * image.width) - image.blockWidth);
+            i++;
+        }
+        else if (pixelOnRow == image.blockWidth)
+        {
+            count++;
+            pixelOnRow = 0;
+        }
+        else if (count == image.blockHeight)
+        {
+            count = 0;
+            i += image.blockWidth;
+            blocksFilled++;
+        }
+        // else if (blocksFilled == blocksForWidth)
+        // {
+        //     i += image.blockHeight * image.width;
+        // }
+        image.input[possition].e[0] = image.input[possition].e[0] * image.blocks[blocksFilled].values[1];
+        image.input[possition].e[1] = image.input[possition].e[0] * image.blocks[blocksFilled].values[3];
+        image.input[possition].e[2] = image.input[possition].e[0] * image.blocks[blocksFilled].values[1];
     }
 }
 int main()
 {
-    FILE *file;
-    file = fopen("../LSC.jpg", "rb");
-    if (!file)
-    {
-        printf("Failed to open file!\n");
-        return -1;
-    }
+
     Image image;
-    stbi_info("../LSC.jpg", &image.width, &image.height, &image.channels);
+    stbi_info("../minon.jpeg", &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
-    unsigned char *imgData = stbi_load("../LSC.jpg", &image.width, &image.height, &image.channels, image.channels);
+    unsigned char *imgData = stbi_load("../minon.jpeg", &image.width, &image.height, &image.channels, image.channels);
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
     fillImageData(image);
-    // stbi_write_jpg("saved2.jpg", image.width, image.height, 4, image.input.data(), 100);
-    fclose(file);
     LSC lsc;
+    Block block(0, 0, 0, 0);
     lsc.genValues(image);
     lsc.saveValues(image);
     image.blocks.clear();
-    lsc.loadValues(image);
+    lsc.loadValues(image, block);
+    lsc.applyValues(image);
+    stbi_write_jpg("../saved2.jpeg", image.width, image.height, 4, image.input.data(), 100);
 
     return 0;
 }
