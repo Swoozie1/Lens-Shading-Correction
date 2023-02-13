@@ -7,6 +7,7 @@
 #include "stb/stb_image_resize.h"
 #include <vector>
 #include <fstream>
+#include <opencv4/opencv2/opencv.hpp>
 const int blocksForWidth = 13;
 const int blocksForHeight = 17;
 struct Block
@@ -27,7 +28,6 @@ public:
     std::vector<Pixel> input;
     std::vector<Block> blocks;
     std::vector<uint8_t> dataBuffer;
-    // std::string dataBuffer = "";
 
     int width = 0;
     int height = 0;
@@ -36,18 +36,11 @@ public:
     int pixelMaxValue = 0;
     int blockWidth;
     int blockHeight;
-    // Image(int _width, int _height, int _channels)
-    // {
-    //     width = _width;
-    //     height = _height;
-    //     // channels = _channels;
-    //     blockWidth = _width / blocksForWidth;
-    //     blockHeight = _height / blocksForHeight;
-    // }
 };
 
 struct LSC
 {
+    // move in Image
     void genValues(Image &image);
     void saveValues(const Image &image);
     void loadValues(Image &image, Block &block);
@@ -74,44 +67,33 @@ void fillImageData(Image &image)
 
 void LSC::genValues(Image &image)
 {
-    int newlineCounter = 0;
-    for (int i = 0; i < blocksForHeight * blocksForWidth; i++)
+    float sumRed = 0;
+    float sumGreen = 0;
+    float sumBlue = 0;
+    for (int count = 0; count < blocksForHeight; count++)
     {
-        float sumRed = 0.0;
-        float sumGreen = 0.0;
-        float sumBlue = 0.0;
-        int pixelsPerRow = 0;
-        for (int j = 0; j < image.blockWidth * image.blockHeight; j++, pixelsPerRow++)
+        int blockCount = 0;
+        for (int i = 0; i < image.width; i++, blockCount++)
         {
-            int possition = 0;
-            if (newlineCounter == 0)
+            for (int j = 0; j <= image.blockHeight; j++)
             {
-                possition = j + (i * image.blockWidth);
+                int possition = (image.blockHeight * count * image.width) + (j * image.width) + i;
+                sumRed += image.input[possition].e[0];
+                sumGreen += image.input[possition].e[1];
+                sumBlue += image.input[possition].e[2];
             }
-            else
+            if (blockCount == image.blockWidth)
             {
-                possition = (j + ((image.width * newlineCounter) - image.blockWidth));
+                sumRed = sumRed / float(image.blockHeight * image.blockWidth);
+                sumGreen = sumGreen / float(image.blockHeight * image.blockWidth);
+                sumBlue = sumBlue / float(image.blockHeight * image.blockWidth);
+                image.blocks.push_back({(sumRed / 100), (sumGreen / sumRed), (sumGreen / sumBlue), (sumBlue / 100)});
+                blockCount = 0;
             }
-            if (pixelsPerRow == image.blockWidth && newlineCounter <= image.blockHeight)
-            {
-                newlineCounter++;
-                pixelsPerRow = 0;
-            }
-            else
-            {
-                newlineCounter = 0;
-            }
-
-            sumRed += image.input[possition].e[0];
-            sumGreen += image.input[possition].e[1];
-            sumBlue += image.input[possition].e[2];
         }
-        sumRed = sumRed / float(image.blockHeight * image.blockWidth);
-        sumGreen = sumGreen / float(image.blockHeight * image.blockWidth);
-        sumBlue = sumBlue / float(image.blockHeight * image.blockWidth);
-        image.blocks.push_back({(sumRed / 100), (sumGreen / sumRed), (sumGreen / sumBlue), (sumBlue / 100)});
     }
 }
+
 void LSC::saveValues(const Image &image)
 {
     std::fstream writeFile;
@@ -124,7 +106,10 @@ void LSC::saveValues(const Image &image)
     {
         for (int i = 0; i <= image.blocks.size() - 1; i++)
         {
-            writeFile << image.blocks[i].values[0] << " " << image.blocks[i].values[1] << " " << image.blocks[i].values[2] << " " << image.blocks[i].values[3] << std::endl;
+            writeFile << image.blocks[i].values[0]
+                      << " " << image.blocks[i].values[1]
+                      << " " << image.blocks[i].values[2]
+                      << " " << image.blocks[i].values[3] << std::endl;
         }
     }
     writeFile.close();
@@ -159,8 +144,10 @@ void LSC::applyValues(Image &image)
     int possition = 0;
     int pixelOnRow = 0;
     int blocksFilled = 0;
+    int centerBlock = (blocksForHeight / 2) * (blocksForWidth / 2);
     for (int i = 0; i <= image.width * image.height; pixelOnRow++)
     {
+        possition = (pixelOnRow + (count * image.width) - image.blockWidth);
         if (blocksFilled == 0 && count == 0)
         {
             possition = (pixelOnRow + (count * image.width));
@@ -185,20 +172,25 @@ void LSC::applyValues(Image &image)
         // {
         //     i += image.blockHeight * image.width;
         // }
-        image.input[possition].e[0] = image.input[possition].e[0] * image.blocks[blocksFilled].values[1];
-        image.input[possition].e[1] = image.input[possition].e[0] * image.blocks[blocksFilled].values[3];
-        image.input[possition].e[2] = image.input[possition].e[0] * image.blocks[blocksFilled].values[1];
+        image.input[possition].e[0] = image.input[possition].e[0] * image.blocks[centerBlock].values[0];
+        image.input[possition].e[1] = image.input[possition].e[1] * image.blocks[centerBlock].values[1];
+        // image.input[possition].e[1] = image.input[possition].e[1] / image.blocks[centerBlock].values[1];
+        image.input[possition].e[2] = image.input[possition].e[2] * image.blocks[centerBlock].values[3];
     }
+}
+void loadImage(Image &image)
+{
+    stbi_info("../noLSC.jpg", &image.width, &image.height, &image.channels);
+    image.dataBuffer.resize(image.width * image.height * image.channels);
+    unsigned char *imgData = stbi_load("../noLSC.jpg", &image.width, &image.height, &image.channels, image.channels);
+    memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
+    stbi_image_free(imgData);
 }
 int main()
 {
 
     Image image;
-    stbi_info("../minon.jpeg", &image.width, &image.height, &image.channels);
-    image.dataBuffer.resize(image.width * image.height * image.channels);
-    unsigned char *imgData = stbi_load("../minon.jpeg", &image.width, &image.height, &image.channels, image.channels);
-    memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
-    stbi_image_free(imgData);
+    loadImage(image);
     fillImageData(image);
     LSC lsc;
     Block block(0, 0, 0, 0);
@@ -207,7 +199,7 @@ int main()
     image.blocks.clear();
     lsc.loadValues(image, block);
     lsc.applyValues(image);
-    stbi_write_jpg("../saved2.jpeg", image.width, image.height, 4, image.input.data(), 100);
+    stbi_write_jpg("../saved.jpeg", image.width, image.height, 4, image.input.data(), 100);
 
     return 0;
 }
