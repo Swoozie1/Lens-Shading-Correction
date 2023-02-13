@@ -172,10 +172,10 @@ void LSC::applyValues(Image &image)
         // {
         //     i += image.blockHeight * image.width;
         // }
-        image.input[possition].e[0] = image.input[possition].e[0] * image.blocks[centerBlock].values[0];
-        image.input[possition].e[1] = image.input[possition].e[1] * image.blocks[centerBlock].values[1];
+        image.input[possition].e[0] = image.input[possition].e[0] / image.blocks[centerBlock].values[0];
+        image.input[possition].e[1] = image.input[possition].e[1] / image.blocks[centerBlock].values[1];
         // image.input[possition].e[1] = image.input[possition].e[1] / image.blocks[centerBlock].values[1];
-        image.input[possition].e[2] = image.input[possition].e[2] * image.blocks[centerBlock].values[3];
+        image.input[possition].e[2] = image.input[possition].e[2] / image.blocks[centerBlock].values[3];
     }
 }
 void loadImage(Image &image)
