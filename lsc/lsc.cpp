@@ -12,9 +12,8 @@ const int blocksForWidth = 13;
 const int blocksForHeight = 17;
 struct Block
 {
-    Block(float rValue, float grValue, float gbValue, float bValue) : values{rValue, grValue, gbValue, bValue} {}
-
-    float values[4];
+    float value;
+    Block(float value) : value{value} {}
 };
 struct Pixel
 {
@@ -36,6 +35,7 @@ public:
     int pixelMaxValue = 0;
     int blockWidth;
     int blockHeight;
+    float averageBrightness;
 };
 
 struct LSC
@@ -67,9 +67,8 @@ void fillImageData(Image &image)
 
 void LSC::genValues(Image &image)
 {
-    float sumRed = 0;
-    float sumGreen = 0;
-    float sumBlue = 0;
+
+    float blockBrightness = 0;
     for (int count = 0; count < blocksForHeight; count++)
     {
         int blockCount = 0;
@@ -78,16 +77,12 @@ void LSC::genValues(Image &image)
             for (int j = 0; j <= image.blockHeight; j++)
             {
                 int possition = (image.blockHeight * count * image.width) + (j * image.width) + i;
-                sumRed += image.input[possition].e[0];
-                sumGreen += image.input[possition].e[1];
-                sumBlue += image.input[possition].e[2];
+                blockBrightness += ((0.299 * image.input[possition].e[0]) + (0.587 * image.input[possition].e[1]) + (0.114 * image.input[possition].e[2]));
             }
             if (blockCount == image.blockWidth)
             {
-                sumRed = sumRed / float(image.blockHeight * image.blockWidth);
-                sumGreen = sumGreen / float(image.blockHeight * image.blockWidth);
-                sumBlue = sumBlue / float(image.blockHeight * image.blockWidth);
-                image.blocks.push_back({(sumRed / 100), (sumGreen / sumRed), (sumGreen / sumBlue), (sumBlue / 100)});
+                blockBrightness = blockBrightness / (image.blockHeight * image.blockWidth);
+                image.blocks.push_back({blockBrightness});
                 blockCount = 0;
             }
         }
@@ -106,13 +101,11 @@ void LSC::saveValues(const Image &image)
     {
         for (int i = 0; i <= image.blocks.size() - 1; i++)
         {
-            writeFile << image.blocks[i].values[0]
-                      << " " << image.blocks[i].values[1]
-                      << " " << image.blocks[i].values[2]
-                      << " " << image.blocks[i].values[3] << std::endl;
+            float value = (1.0 / (float(image.blocks[i].value) / image.averageBrightness));
+            writeFile << value << std::endl;
         }
+        writeFile.close();
     }
-    writeFile.close();
 }
 void LSC::loadValues(Image &image, Block &block)
 {
@@ -128,26 +121,21 @@ void LSC::loadValues(Image &image, Block &block)
         int count = 0;
         while (readFile >> str)
         {
-            block.values[count] = std::stof(str);
-            count++;
-            if (count == 4)
-            {
-                image.blocks.push_back(block);
-                count = 0;
-            }
+            block.value = std::stof(str);
+            image.blocks.push_back(block);
         }
     }
 }
 void LSC::applyValues(Image &image)
 {
     int count = 0;
-    int possition = 0;
     int pixelOnRow = 0;
     int blocksFilled = 0;
     int centerBlock = (blocksForHeight / 2) * (blocksForWidth / 2);
-    for (int i = 0; i <= image.width * image.height; pixelOnRow++)
+    for (int i = 0; i < image.width * image.height; pixelOnRow++)
     {
-        possition = (pixelOnRow + (count * image.width) - image.blockWidth);
+
+        int possition = (pixelOnRow + (count * image.width) - image.blockWidth);
         if (blocksFilled == 0 && count == 0)
         {
             possition = (pixelOnRow + (count * image.width));
@@ -168,14 +156,9 @@ void LSC::applyValues(Image &image)
             i += image.blockWidth;
             blocksFilled++;
         }
-        // else if (blocksFilled == blocksForWidth)
-        // {
-        //     i += image.blockHeight * image.width;
-        // }
-        image.input[possition].e[0] = image.input[possition].e[0] / image.blocks[centerBlock].values[0];
-        image.input[possition].e[1] = image.input[possition].e[1] / image.blocks[centerBlock].values[1];
-        // image.input[possition].e[1] = image.input[possition].e[1] / image.blocks[centerBlock].values[1];
-        image.input[possition].e[2] = image.input[possition].e[2] / image.blocks[centerBlock].values[3];
+        image.input[possition].e[0] = image.input[possition].e[0] * image.blocks[blocksFilled].value;
+        image.input[possition].e[1] = image.input[possition].e[1] * image.blocks[blocksFilled].value;
+        image.input[possition].e[2] = image.input[possition].e[2] * image.blocks[blocksFilled].value;
     }
 }
 void loadImage(Image &image)
@@ -186,6 +169,15 @@ void loadImage(Image &image)
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
 }
+int getNormalizedvalues(Image &image)
+{
+    int sum = 0;
+    for (int i = 0; i < image.blocks.size() - 1; i++)
+    {
+        sum += image.blocks[i].value;
+    }
+    return (sum / image.blocks.size());
+}
 int main()
 {
 
@@ -193,8 +185,9 @@ int main()
     loadImage(image);
     fillImageData(image);
     LSC lsc;
-    Block block(0, 0, 0, 0);
+    Block block(0);
     lsc.genValues(image);
+    image.averageBrightness = getNormalizedvalues(image);
     lsc.saveValues(image);
     image.blocks.clear();
     lsc.loadValues(image, block);
