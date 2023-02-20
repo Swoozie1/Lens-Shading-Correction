@@ -7,7 +7,6 @@
 #include "stb/stb_image_resize.h"
 #include <vector>
 #include <fstream>
-#include <opencv4/opencv2/opencv.hpp>
 const int blocksForWidth = 13;
 const int blocksForHeight = 17;
 struct Block
@@ -64,7 +63,15 @@ void fillImageData(Image &image)
         offset += 3;
     }
 }
-
+int getNormalizedvalues(Image &image)
+{
+    int sum = 0;
+    for (int i = 0; i < image.blocks.size() - 1; i++)
+    {
+        sum += image.blocks[i].value;
+    }
+    return (sum / image.blocks.size());
+}
 void LSC::genValues(Image &image)
 {
 
@@ -87,6 +94,7 @@ void LSC::genValues(Image &image)
             }
         }
     }
+    image.averageBrightness = getNormalizedvalues(image);
 }
 
 void LSC::saveValues(const Image &image)
@@ -169,15 +177,7 @@ void loadImage(Image &image)
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
 }
-int getNormalizedvalues(Image &image)
-{
-    int sum = 0;
-    for (int i = 0; i < image.blocks.size() - 1; i++)
-    {
-        sum += image.blocks[i].value;
-    }
-    return (sum / image.blocks.size());
-}
+
 int main()
 {
 
@@ -187,7 +187,6 @@ int main()
     LSC lsc;
     Block block(0);
     lsc.genValues(image);
-    image.averageBrightness = getNormalizedvalues(image);
     lsc.saveValues(image);
     image.blocks.clear();
     lsc.loadValues(image, block);
