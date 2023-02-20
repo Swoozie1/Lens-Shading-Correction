@@ -83,7 +83,7 @@ void LSC::genValues(Image &image)
         {
             for (int j = 0; j <= image.blockHeight; j++)
             {
-                int possition = (image.blockHeight * count * image.width) + (j * image.width) + i;
+                int possition = (image.blockHeight * (count * image.width)) + (j * image.width) + i;
                 blockBrightness += ((0.299 * image.input[possition].e[0]) + (0.587 * image.input[possition].e[1]) + (0.114 * image.input[possition].e[2]));
             }
             if (blockCount == image.blockWidth)
@@ -134,41 +134,53 @@ void LSC::loadValues(Image &image, Block &block)
         }
     }
 }
+int clamp(float a, float b)
+{
+    if (a * b > 255)
+    {
+        return 255;
+    }
+    else if (a * b < 0)
+    {
+        return 0;
+    }
+    else
+    {
+        return a * b;
+    }
+}
 void LSC::applyValues(Image &image)
 {
     int count = 0;
     int pixelOnRow = 0;
     int blocksFilled = 0;
-    int centerBlock = (blocksForHeight / 2) * (blocksForWidth / 2);
-    for (int i = 0; i < image.width * image.height; pixelOnRow++)
+    for (int i = 0; i < image.height * image.width; i++, pixelOnRow++)
     {
-
-        int possition = (pixelOnRow + (count * image.width) - image.blockWidth);
-        if (blocksFilled == 0 && count == 0)
+        for (int j = 0; j < image.blockHeight; j++)
         {
-            possition = (pixelOnRow + (count * image.width));
+            int possition = i + (j * image.width);
+            image.input[possition].e[0] = clamp(image.input[possition].e[0], image.blocks[blocksFilled].value);
+            image.input[possition].e[1] = clamp(image.input[possition].e[1], image.blocks[blocksFilled].value);
+            image.input[possition].e[2] = clamp(image.input[possition].e[2], image.blocks[blocksFilled].value);
         }
-        if (count == 0 && blocksFilled != 0)
+        if (pixelOnRow == image.blockWidth)
         {
-            possition = (i + (count * image.width) - image.blockWidth);
-            i++;
-        }
-        else if (pixelOnRow == image.blockWidth)
-        {
+            blocksFilled++;
             count++;
             pixelOnRow = 0;
         }
-        else if (count == image.blockHeight)
+        if (blocksFilled == blocksForHeight * blocksForWidth)
         {
-            count = 0;
-            i += image.blockWidth;
-            blocksFilled++;
+            break;
         }
-        image.input[possition].e[0] = image.input[possition].e[0] * image.blocks[blocksFilled].value;
-        image.input[possition].e[1] = image.input[possition].e[1] * image.blocks[blocksFilled].value;
-        image.input[possition].e[2] = image.input[possition].e[2] * image.blocks[blocksFilled].value;
+        if (count == blocksForWidth)
+        {
+            i += image.blockHeight * image.width - image.width;
+            count = 0;
+        }
     }
 }
+
 void loadImage(Image &image)
 {
     stbi_info("../noLSC.jpg", &image.width, &image.height, &image.channels);
