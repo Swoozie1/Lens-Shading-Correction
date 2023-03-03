@@ -5,10 +5,11 @@
 #include "stb/stb_image_write.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb/stb_image_resize.h"
+#include <opencv2/opencv.hpp>
 #include <vector>
 #include <fstream>
-const int blocksForWidth = 13;
-const int blocksForHeight = 17;
+const int blocksForWidth = 17;
+const int blocksForHeight = 13;
 struct Block
 {
     float value;
@@ -40,10 +41,10 @@ public:
 struct LSC
 {
     // move in Image
-    void genValues(Image &image);
+    void genValues(Image &image, cv::Mat &img);
     void saveValues(const Image &image);
     void loadValues(Image &image, Block &block);
-    void applyValues(Image &image);
+    void applyValues(Image &image, cv::Mat &img);
 };
 
 void fillImageData(Image &image)
@@ -72,28 +73,36 @@ int getNormalizedvalues(Image &image)
     }
     return (sum / image.blocks.size());
 }
-void LSC::genValues(Image &image)
+void genPixelValues(Image &image, cv::Mat &img, const int blockX, const int blockY)
 {
-
     float blockBrightness = 0;
-    for (int count = 0; count < blocksForHeight; count++)
+    for (int i = 0; i < image.blockHeight; i++)
     {
-        int blockCount = 0;
-        for (int i = 0; i < image.width; i++, blockCount++)
+        for (int j = 0; j < image.blockWidth; j++)
         {
-            for (int j = 0; j <= image.blockHeight; j++)
-            {
-                int possition = (image.blockHeight * (count * image.width)) + (j * image.width) + i;
-                blockBrightness += ((0.299 * image.input[possition].e[0]) + (0.587 * image.input[possition].e[1]) + (0.114 * image.input[possition].e[2]));
-            }
-            if (blockCount == image.blockWidth)
-            {
-                blockBrightness = blockBrightness / (image.blockHeight * image.blockWidth);
-                image.blocks.push_back({blockBrightness});
-                blockCount = 0;
-            }
+            int x = (j + (blockX * image.blockWidth));
+            int y = (i + (blockY * image.blockHeight));
+            cv::Vec3b pixel = img.at<cv::Vec3b>(cv::Point(x, y));
+            blockBrightness += pixel[2];
         }
     }
+    blockBrightness = blockBrightness / (image.blockHeight * image.blockWidth);
+    image.blocks.push_back({blockBrightness});
+}
+void LSC::genValues(Image &image, cv::Mat &img)
+{
+    int count = 0;
+    int pixelOnRow = 0;
+    int blocksFilled = 0;
+    for (int i = 0; i < blocksForHeight; i++)
+    {
+        for (int j = 0; j < blocksForWidth; j++)
+        {
+
+            genPixelValues(image, img, j, i);
+        }
+    }
+
     image.averageBrightness = getNormalizedvalues(image);
 }
 
@@ -134,7 +143,7 @@ void LSC::loadValues(Image &image, Block &block)
         }
     }
 }
-int clamp(float a, float b)
+int clamp(int a, float b)
 {
     if (a * b > 255)
     {
@@ -146,63 +155,78 @@ int clamp(float a, float b)
     }
     else
     {
-        return a * b;
+        return int(a * b);
     }
 }
-void LSC::applyValues(Image &image)
+void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
 {
-    int count = 0;
-    int pixelOnRow = 0;
-    int blocksFilled = 0;
-    for (int i = 0; i < image.height * image.width; i++, pixelOnRow++)
+    for (int i = 0; i < image.blockHeight; i++)
     {
-        for (int j = 0; j < image.blockHeight; j++)
+        for (int j = 0; j < image.blockWidth; j++)
         {
-            int possition = i + (j * image.width);
-            image.input[possition].e[0] = clamp(image.input[possition].e[0], image.blocks[blocksFilled].value);
-            image.input[possition].e[1] = clamp(image.input[possition].e[1], image.blocks[blocksFilled].value);
-            image.input[possition].e[2] = clamp(image.input[possition].e[2], image.blocks[blocksFilled].value);
-        }
-        if (pixelOnRow == image.blockWidth)
-        {
-            blocksFilled++;
-            count++;
-            pixelOnRow = 0;
-        }
-        if (blocksFilled == blocksForHeight * blocksForWidth)
-        {
-            break;
-        }
-        if (count == blocksForWidth)
-        {
-            i += image.blockHeight * image.width - image.width;
-            count = 0;
+            int x = (j + (posX * image.blockWidth));
+            int y = (i + (posY * image.blockHeight));
+            cv::Vec3b pix = img.at<cv::Vec3b>(cv::Point(x, y));
+            int posBlock = posX + (posY * blocksForWidth);
+            int CenterBlock = (blocksForHeight / 2) * (blocksForWidth / 2);
+            pix[2] = clamp(pix[2], image.blocks[posBlock].value);
+            img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
         }
     }
+}
+void LSC::applyValues(Image &image, cv::Mat &img)
+{
+    bool interpolate = false;
+    for (int i = 0; i < blocksForHeight; i++)
+    {
+        for (int j = 0; j < blocksForWidth; j++)
+        {
+
+            applyPixelValues(image, img, j, i);
+        }
+    }
+
+    cv::cvtColor(img, img, cv::COLOR_HSV2RGB);
+    cv::imwrite("../img2.jpg", img);
 }
 
 void loadImage(Image &image)
 {
-    stbi_info("../noLSC.jpg", &image.width, &image.height, &image.channels);
+    // vignette-effect-lighthouse
+    stbi_info("../vignette-effect-lighthouse.jpg", &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
-    unsigned char *imgData = stbi_load("../noLSC.jpg", &image.width, &image.height, &image.channels, image.channels);
+    unsigned char *imgData = stbi_load("../vignette-effect-lighthouse.jpg", &image.width, &image.height, &image.channels, image.channels);
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
 }
 
+void interpolateImage(cv::Mat &img, Image &image)
+{
+    for (int i = 0; i < blocksForHeight * blocksForWidth; i++)
+    {
+        for (int posY = 0; posY < image.blockHeight; posY++)
+        {
+            for (int posX = 0; posX < image.blockWidth; posX++)
+            {
+                        }
+        }
+    }
+}
 int main()
 {
 
     Image image;
     loadImage(image);
     fillImageData(image);
+    cv::Mat img(image.height, image.width, CV_8UC4, image.input.data());
+    cv::cvtColor(img, img, cv::COLOR_BGR2HSV);
     LSC lsc;
     Block block(0);
-    lsc.genValues(image);
+    lsc.genValues(image, img);
     lsc.saveValues(image);
     image.blocks.clear();
     lsc.loadValues(image, block);
-    lsc.applyValues(image);
+    lsc.applyValues(image, img);
     stbi_write_jpg("../saved.jpeg", image.width, image.height, 4, image.input.data(), 100);
 
     return 0;
