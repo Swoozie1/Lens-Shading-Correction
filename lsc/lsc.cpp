@@ -1,15 +1,14 @@
 #include <iostream>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
+#include "stbi_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb/stb_image_write.h"
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stb/stb_image_resize.h"
+#include "stbi_image_write.h"
+#include "stbi_image_resize.h"
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <fstream>
-const int blocksForWidth = 17;
-const int blocksForHeight = 13;
+const int blocksForWidth = 15;
+const int blocksForHeight = 15;
 struct Block
 {
     float value;
@@ -118,7 +117,7 @@ void LSC::saveValues(const Image &image)
     {
         for (int i = 0; i <= image.blocks.size() - 1; i++)
         {
-            float value = (1.0 / (float(image.blocks[i].value) / image.averageBrightness));
+            float value = ( 1.0/(float(image.blocks[i].value)/image.averageBrightness ));
             writeFile << value << std::endl;
         }
         writeFile.close();
@@ -158,28 +157,96 @@ int clamp(int a, float b)
         return int(a * b);
     }
 }
+void calculate(Image &image, cv::Mat &img, int &x,int &y, int &j, int &i,float &value1,float &value2,float &value3,float &value4)
+{
+    
+    float horizontalValue1 = float((image.blockWidth/2) + j) / float(image.blockWidth);
+    float horizontalValue2 = float((image.blockWidth/2) - j) / float(image.blockWidth);
+    float verticalValue1 = float((image.blockHeight/2) + i) / float (image.blockHeight);
+    float verticalValue2 = float((image.blockHeight/2) - i) / float (image.blockHeight);
+    float alpha1 = (horizontalValue1 * value1) + (horizontalValue2 * value2);
+    float alpha2 = (horizontalValue1 * value3) + (horizontalValue2 * value4);
+    float alphaFinal = (verticalValue1 * alpha1) + (verticalValue2 * alpha2);
+    printf("%.2f %.2f /",horizontalValue1,verticalValue1);
+    // cv::Vec3b pix = img.at<cv::Vec3b>(cv::Point(x, y));
+    // pix[2] = clamp(pix[2],alphaFinal);
+    // img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
+}
 void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
 {
-    for (int i = 0; i < image.blockHeight; i++)
+    int posBlock = posX + (posY * blocksForWidth);
+    float value1 = image.blocks[posBlock-(blocksForWidth+1)].value;
+    float value2 = image.blocks[posBlock - blocksForWidth].value;
+    float value3 = image.blocks[posBlock-1].value;
+    float value4 = image.blocks[posBlock].value;
+    printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
+    for (int i = 0; i < image.blockHeight/2; i++)
     {
-        for (int j = 0; j < image.blockWidth; j++)
-        {
+        for (int j = 0; j < image.blockWidth/2; j++)
+        {   int x = (j + (posX * image.blockWidth));
+            int y = (i + (posY * image.blockHeight));
+            
+            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
+     
+
+        }
+     
+    }
+        value1 = image.blocks[posBlock-(blocksForWidth)].value;
+        value2 = image.blocks[posBlock - (blocksForWidth-1)].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock+1].value;
+    printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
+    for (int i = 0; i < image.blockHeight/2; i++)
+    {
+        for (int j = image.blockWidth/2; j < image.blockWidth; j++)
+        {   
+          int x = (j + (posX * image.blockWidth));
+            int y = (i + (posY * image.blockHeight));
+            
+            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
+            
+        }
+      
+    }
+        value1 = image.blocks[posBlock-1].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock+(blocksForWidth-1)].value;
+        value4 = image.blocks[posBlock+blocksForWidth].value;
+        printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
+    for (int i = image.blockHeight/2; i < image.blockHeight; i++)
+    {
+        for (int j = 0; j < image.blockWidth/2; j++)
+        {   int x = (j + (posX * image.blockWidth));
+            int y = (i + (posY * image.blockHeight));
+            
+            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
+        }
+      
+    }
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock +1].value;
+        value3 = image.blocks[posBlock+blocksForWidth].value;
+        value4 = image.blocks[posBlock+(blocksForWidth+1)].value;
+        printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
+    for (int i = image.blockHeight/2; i < image.blockHeight; i++)
+    {
+        for (int j = image.blockWidth/2; j < image.blockWidth; j++)
+        {   
             int x = (j + (posX * image.blockWidth));
             int y = (i + (posY * image.blockHeight));
-            cv::Vec3b pix = img.at<cv::Vec3b>(cv::Point(x, y));
-            int posBlock = posX + (posY * blocksForWidth);
-            int CenterBlock = (blocksForHeight / 2) * (blocksForWidth / 2);
-            pix[2] = clamp(pix[2], image.blocks[posBlock].value);
-            img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
+            
+            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
         }
+      
     }
 }
 void LSC::applyValues(Image &image, cv::Mat &img)
 {
     bool interpolate = false;
-    for (int i = 0; i < blocksForHeight; i++)
+    for (int i = 1; i < 2; i++)
     {
-        for (int j = 0; j < blocksForWidth; j++)
+        for (int j = 1; j < 2; j++)
         {
 
             applyPixelValues(image, img, j, i);
@@ -187,30 +254,17 @@ void LSC::applyValues(Image &image, cv::Mat &img)
     }
 
     cv::cvtColor(img, img, cv::COLOR_HSV2RGB);
-    cv::imwrite("../img2.jpg", img);
+    cv::imwrite("../img3.jpg", img);
 }
 
 void loadImage(Image &image)
 {
     // vignette-effect-lighthouse
-    stbi_info("../vignette-effect-lighthouse.jpg", &image.width, &image.height, &image.channels);
+    stbi_info("../eitvae.jpeg", &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
-    unsigned char *imgData = stbi_load("../vignette-effect-lighthouse.jpg", &image.width, &image.height, &image.channels, image.channels);
+    unsigned char *imgData = stbi_load("../eitvae.jpeg", &image.width, &image.height, &image.channels, image.channels);
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
-}
-
-void interpolateImage(cv::Mat &img, Image &image)
-{
-    for (int i = 0; i < blocksForHeight * blocksForWidth; i++)
-    {
-        for (int posY = 0; posY < image.blockHeight; posY++)
-        {
-            for (int posX = 0; posX < image.blockWidth; posX++)
-            {
-                        }
-        }
-    }
 }
 int main()
 {
