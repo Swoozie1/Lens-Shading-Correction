@@ -7,8 +7,8 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <fstream>
-const int blocksForWidth = 15;
-const int blocksForHeight = 15;
+const int blocksForWidth = 5;
+const int blocksForHeight = 5;
 struct Block
 {
     float value;
@@ -253,9 +253,13 @@ void LSC::applyValues(Image &image, cv::Mat &img)
 void loadImage(Image &image)
 {
     // vignette-effect-lighthouse
-    stbi_info("../eitvae.jpeg", &image.width, &image.height, &image.channels);
+
+    const char *filename = "../eitvae.jpeg";
+    // char *filename = "../30.jpg";
+    // char *filename = "../LSCOFF.jpg";
+    stbi_info(filename, &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
-    unsigned char *imgData = stbi_load("../eitvae.jpeg", &image.width, &image.height, &image.channels, image.channels);
+    unsigned char *imgData = stbi_load(filename, &image.width, &image.height, &image.channels, image.channels);
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
 }
