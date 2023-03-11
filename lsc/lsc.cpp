@@ -65,12 +65,15 @@ void fillImageData(Image &image)
 }
 int getNormalizedvalues(Image &image)
 {
-    int sum = 0;
-    for (int i = 0; i < image.blocks.size(); i++)
+    int max = 0;
+    for (int i = 1; i < image.blocks.size(); i++)
     {
-        sum += image.blocks[i].value;
+        if (image.blocks[i].value > image.blocks[i - 1].value)
+        {
+            max = image.blocks[i].value;
     }
-    return (sum / image.blocks.size());
+    }
+    return max;
 }
 void genPixelValues(Image &image, cv::Mat &img, const int blockX, const int blockY)
 {
