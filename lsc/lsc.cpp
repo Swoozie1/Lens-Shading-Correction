@@ -66,7 +66,7 @@ void fillImageData(Image &image)
 int getNormalizedvalues(Image &image)
 {
     int sum = 0;
-    for (int i = 0; i < image.blocks.size() - 1; i++)
+    for (int i = 0; i < image.blocks.size(); i++)
     {
         sum += image.blocks[i].value;
     }
@@ -115,9 +115,9 @@ void LSC::saveValues(const Image &image)
     }
     else
     {
-        for (int i = 0; i <= image.blocks.size() - 1; i++)
+        for (int i = 0; i < image.blocks.size(); i++)
         {
-            float value = ( 1.0/(float(image.blocks[i].value)/image.averageBrightness ));
+            float value = (1.0 / (float(image.blocks[i].value) / image.averageBrightness));
             writeFile << value << std::endl;
         }
         writeFile.close();
@@ -144,11 +144,11 @@ void LSC::loadValues(Image &image, Block &block)
 }
 int clamp(int a, float b)
 {
-    if (a * b > 255)
+    if (a * b > 255.f)
     {
         return 255;
     }
-    else if (a * b < 0)
+    else if (a * b < 0.f)
     {
         return 0;
     }
@@ -157,104 +157,97 @@ int clamp(int a, float b)
         return int(a * b);
     }
 }
-void calculate(Image &image, cv::Mat &img, int &x,int &y, int &j, int &i,float &value1,float &value2,float &value3,float &value4)
+void calculate(Image &image, cv::Mat &img, int &x, int &y, int j, int i, float &value1, float &value2, float &value3, float &value4)
 {
-    
-    float horizontalValue1 = float((image.blockWidth/2) + j) / float(image.blockWidth);
-    float horizontalValue2 = float((image.blockWidth/2) - j) / float(image.blockWidth);
-    float verticalValue1 = float((image.blockHeight/2) + i) / float (image.blockHeight);
-    float verticalValue2 = float((image.blockHeight/2) - i) / float (image.blockHeight);
-    float alpha1 = (horizontalValue1 * value1) + (horizontalValue2 * value2);
-    float alpha2 = (horizontalValue1 * value3) + (horizontalValue2 * value4);
-    float alphaFinal = (verticalValue1 * alpha1) + (verticalValue2 * alpha2);
-    printf("%.2f %.2f /",horizontalValue1,verticalValue1);
-    // cv::Vec3b pix = img.at<cv::Vec3b>(cv::Point(x, y));
-    // pix[2] = clamp(pix[2],alphaFinal);
-    // img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
+    float horizontalValue1 = (float(image.blockWidth) * 0.5f + j) / float(image.blockWidth);
+    float verticalValue1 = (float(image.blockHeight) * 0.5f + i) / float(image.blockHeight);
+    float alpha1 = (horizontalValue1 * value2) + ((1.0f - horizontalValue1) * value1);
+    float alpha2 = (horizontalValue1 * value4) + ((1.0f - horizontalValue1) * value3);
+    float alphaFinal = (verticalValue1 * alpha2) + ((1.0f - verticalValue1) * alpha1);
+    printf("%.2f %.2f /", (horizontalValue1), (verticalValue1));
+    cv::Vec3b pix = img.at<cv::Vec3b>(cv::Point(x, y));
+    // pix[0] = pix[1] = pix[2] = clamp(255, alphaFinal);
+    pix[2] = clamp(pix[2], alphaFinal);
+    img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
 }
 void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
 {
     int posBlock = posX + (posY * blocksForWidth);
-    float value1 = image.blocks[posBlock-(blocksForWidth+1)].value;
+    float value1 = image.blocks[posBlock - (blocksForWidth + 1)].value;
     float value2 = image.blocks[posBlock - blocksForWidth].value;
-    float value3 = image.blocks[posBlock-1].value;
+    float value3 = image.blocks[posBlock - 1].value;
     float value4 = image.blocks[posBlock].value;
-    printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
-    for (int i = 0; i < image.blockHeight/2; i++)
+    printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+    for (int i = 0; i < image.blockHeight / 2; i++)
     {
-        for (int j = 0; j < image.blockWidth/2; j++)
-        {   int x = (j + (posX * image.blockWidth));
-            int y = (i + (posY * image.blockHeight));
-            
-            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
-     
-
-        }
-     
-    }
-        value1 = image.blocks[posBlock-(blocksForWidth)].value;
-        value2 = image.blocks[posBlock - (blocksForWidth-1)].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock+1].value;
-    printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
-    for (int i = 0; i < image.blockHeight/2; i++)
-    {
-        for (int j = image.blockWidth/2; j < image.blockWidth; j++)
-        {   
-          int x = (j + (posX * image.blockWidth));
-            int y = (i + (posY * image.blockHeight));
-            
-            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
-            
-        }
-      
-    }
-        value1 = image.blocks[posBlock-1].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock+(blocksForWidth-1)].value;
-        value4 = image.blocks[posBlock+blocksForWidth].value;
-        printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
-    for (int i = image.blockHeight/2; i < image.blockHeight; i++)
-    {
-        for (int j = 0; j < image.blockWidth/2; j++)
-        {   int x = (j + (posX * image.blockWidth));
-            int y = (i + (posY * image.blockHeight));
-            
-            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
-        }
-      
-    }
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock +1].value;
-        value3 = image.blocks[posBlock+blocksForWidth].value;
-        value4 = image.blocks[posBlock+(blocksForWidth+1)].value;
-        printf("\n%.2f %.2f %.2f %.2f \n",value1,value2,value3,value4);
-    for (int i = image.blockHeight/2; i < image.blockHeight; i++)
-    {
-        for (int j = image.blockWidth/2; j < image.blockWidth; j++)
-        {   
+        for (int j = 0; j < image.blockWidth / 2; j++)
+        {
             int x = (j + (posX * image.blockWidth));
             int y = (i + (posY * image.blockHeight));
-            
-            calculate(image,img,x,y,j,i,value1,value2,value3,value4);
+
+            calculate(image, img, x, y, j, i, value1, value2, value3, value4);
         }
-      
+    }
+    value1 = image.blocks[posBlock - (blocksForWidth)].value;
+    value2 = image.blocks[posBlock - (blocksForWidth - 1)].value;
+    value3 = image.blocks[posBlock].value;
+    value4 = image.blocks[posBlock + 1].value;
+    printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+    for (int i = 0; i < image.blockHeight / 2; i++)
+    {
+        for (int j = 0; j < image.blockWidth / 2; j++)
+        {
+            int x = (j + image.blockWidth / 2 + (posX * image.blockWidth));
+            int y = (i + (posY * image.blockHeight));
+
+            calculate(image, img, x, y, (j - image.blockWidth / 2), i, value1, value2, value3, value4);
+        }
+    }
+    value1 = image.blocks[posBlock - 1].value;
+    value2 = image.blocks[posBlock].value;
+    value3 = image.blocks[posBlock + (blocksForWidth - 1)].value;
+    value4 = image.blocks[posBlock + blocksForWidth].value;
+    printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+    for (int i = 0; i < image.blockHeight / 2; i++)
+    {
+        for (int j = 0; j < image.blockWidth / 2; j++)
+        {
+            int x = (j + (posX * image.blockWidth));
+            int y = (i + image.blockHeight / 2 + (posY * image.blockHeight));
+
+            calculate(image, img, x, y, j, (i - image.blockHeight / 2), value1, value2, value3, value4);
+        }
+    }
+    value1 = image.blocks[posBlock].value;
+    value2 = image.blocks[posBlock + 1].value;
+    value3 = image.blocks[posBlock + blocksForWidth].value;
+    value4 = image.blocks[posBlock + (blocksForWidth + 1)].value;
+    printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+    for (int i = 0; i < image.blockHeight / 2; i++)
+    {
+        for (int j = 0; j < image.blockWidth / 2; j++)
+        {
+            int x = (j + image.blockWidth / 2 + (posX * image.blockWidth));
+            int y = (i + image.blockHeight / 2 + (posY * image.blockHeight));
+
+            calculate(image, img, x, y, (j - image.blockWidth / 2), (i - image.blockHeight / 2), value1, value2, value3, value4);
+        }
     }
 }
 void LSC::applyValues(Image &image, cv::Mat &img)
 {
     bool interpolate = false;
-    for (int i = 1; i < 2; i++)
+    for (int i = 1; i < blocksForHeight - 1; i++)
     {
-        for (int j = 1; j < 2; j++)
+        for (int j = 1; j < blocksForWidth - 1; j++)
         {
 
             applyPixelValues(image, img, j, i);
         }
     }
 
-    cv::cvtColor(img, img, cv::COLOR_HSV2RGB);
-    cv::imwrite("../img3.jpg", img);
+    cv::cvtColor(img, img, cv::COLOR_HSV2BGR);
+    cv::imwrite("../img4.jpg", img);
 }
 
 void loadImage(Image &image)
@@ -273,7 +266,7 @@ int main()
     loadImage(image);
     fillImageData(image);
     cv::Mat img(image.height, image.width, CV_8UC4, image.input.data());
-    cv::cvtColor(img, img, cv::COLOR_BGR2HSV);
+    cv::cvtColor(img, img, cv::COLOR_RGB2HSV);
     LSC lsc;
     Block block(0);
     lsc.genValues(image, img);
