@@ -7,8 +7,8 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <fstream>
-const int blocksForWidth = 5;
-const int blocksForHeight = 5;
+const int blocksForWidth = 17;
+const int blocksForHeight = 13;
 struct Block
 {
     float value;
@@ -34,6 +34,8 @@ public:
     int pixelMaxValue = 0;
     int blockWidth;
     int blockHeight;
+    // int requiredPixelsWidth;
+    // int requiredPixelsHeight;
     float averageBrightness;
 };
 
@@ -51,6 +53,8 @@ void fillImageData(Image &image)
     size_t offset = 0;
     image.blockHeight = image.height / blocksForHeight;
     image.blockWidth = image.width / blocksForWidth;
+    // image.requiredPixelsHeight = image.height % blocksForHeight;
+    // image.requiredPixelsWidth = image.width % blocksForWidth;
     unsigned char r = 0;
     unsigned char g = 0;
     unsigned char b = 0;
@@ -167,11 +171,135 @@ void calculate(Image &image, cv::Mat &img, int &x, int &y, int j, int i, float &
     float alpha1 = (horizontalValue1 * value2) + ((1.0f - horizontalValue1) * value1);
     float alpha2 = (horizontalValue1 * value4) + ((1.0f - horizontalValue1) * value3);
     float alphaFinal = (verticalValue1 * alpha2) + ((1.0f - verticalValue1) * alpha1);
-    // printf("%.2f %.2f /", (horizontalValue1), (verticalValue1));
     cv::Vec3b pix = img.at<cv::Vec3b>(cv::Point(x, y));
     // pix[0] = pix[1] = pix[2] = clamp(255, alphaFinal);
     pix[2] = clamp(pix[2], alphaFinal);
     img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
+}
+void valuesForFirstSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
+{
+    if (posY == 0 && posX == 0)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock].value;
+    }
+    else if (posY == 0)
+    {
+        value1 = image.blocks[posBlock - 1].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock - 1].value;
+        value4 = image.blocks[posBlock].value;
+    }
+    else if (posX == 0)
+    {
+        value1 = image.blocks[posBlock - blocksForWidth].value;
+        value2 = image.blocks[posBlock - blocksForWidth].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock].value;
+    }
+}
+void valuesForSecondSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
+{
+    value1 = image.blocks[posBlock - (blocksForWidth)].value;
+    value2 = image.blocks[posBlock - (blocksForWidth - 1)].value;
+    value3 = image.blocks[posBlock].value;
+    value4 = image.blocks[posBlock + 1].value;
+    if (posY == 0 && posX == blocksForWidth - 1)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock].value;
+    }
+    else if (posY == 0)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock + 1].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock + 1].value;
+    }
+    else if (posX == blocksForWidth - 1)
+    {
+        value1 = image.blocks[posBlock - blocksForWidth].value;
+        value2 = image.blocks[posBlock - blocksForWidth].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock].value;
+    }
+}
+void valuesForThirdSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
+{
+    value1 = image.blocks[posBlock - 1].value;
+    value2 = image.blocks[posBlock].value;
+    value3 = image.blocks[posBlock + (blocksForWidth - 1)].value;
+    value4 = image.blocks[posBlock + blocksForWidth].value;
+    if (posY == 0 && posX == 0)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock + blocksForWidth].value;
+        value4 = image.blocks[posBlock + blocksForWidth].value;
+    }
+    else if (posX == 0 && posY == blocksForHeight - 1)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock].value;
+    }
+    else if (posX == 0)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock + blocksForWidth].value;
+        value4 = image.blocks[posBlock + blocksForWidth].value;
+    }
+
+    else if (posY == blocksForHeight - 1)
+    {
+        value1 = image.blocks[posBlock - 1].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock - 1].value;
+        value4 = image.blocks[posBlock].value;
+    }
+}
+void valuesForFourthSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
+{
+    value1 = image.blocks[posBlock].value;
+    value2 = image.blocks[posBlock + 1].value;
+    value3 = image.blocks[posBlock + blocksForWidth].value;
+    value4 = image.blocks[posBlock + (blocksForWidth + 1)].value;
+
+    if (posY == 0 && posX == blocksForWidth - 1)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock + blocksForWidth].value;
+        value4 = image.blocks[posBlock + blocksForWidth].value;
+    }
+    else if (posX == blocksForWidth - 1 && posY == blocksForHeight - 1)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock].value;
+    }
+    else if (posY == blocksForHeight - 1)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock + 1].value;
+        value3 = image.blocks[posBlock].value;
+        value4 = image.blocks[posBlock + 1].value;
+    }
+
+    else if (posX == blocksForWidth - 1)
+    {
+        value1 = image.blocks[posBlock].value;
+        value2 = image.blocks[posBlock].value;
+        value3 = image.blocks[posBlock + blocksForWidth].value;
+        value4 = image.blocks[posBlock + blocksForWidth].value;
+    }
 }
 void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
 {
@@ -180,14 +308,19 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
     float value2 = image.blocks[posBlock - blocksForWidth].value;
     float value3 = image.blocks[posBlock - 1].value;
     float value4 = image.blocks[posBlock].value;
-    if (posX == 0 || posY == 0)
-    {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock].value;
-    }
-    //  printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+    valuesForFirstSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
+    // bool widhtModified = false;
+    // bool heightModified = false;
+    // if (posX == blocksForWidth - 1)
+    // {
+    //     image.blockWidth += image.requiredPixelsWidth;
+    //     widhtModified = true;
+    // }
+    // if (posY == blocksForHeight - 1)
+    // {
+    //     image.blockHeight += image.requiredPixelsHeight;
+    //     heightModified = true;
+    // }
     for (int i = 0; i < image.blockHeight / 2; i++)
     {
         for (int j = 0; j < image.blockWidth / 2; j++)
@@ -198,19 +331,7 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
             calculate(image, img, x, y, j, i, value1, value2, value3, value4);
         }
     }
-    value1 = image.blocks[posBlock - (blocksForWidth)].value;
-    value2 = image.blocks[posBlock - (blocksForWidth - 1)].value;
-    value3 = image.blocks[posBlock].value;
-    value4 = image.blocks[posBlock + 1].value;
-    if (posX == 0 || posY == 0)
-    {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock + 1].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock + 1].value;
-    }
-
-    // printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+    valuesForSecondSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
     for (int i = 0; i < image.blockHeight / 2; i++)
     {
         for (int j = image.blockWidth / 2; j < image.blockWidth; j++)
@@ -221,18 +342,8 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
             calculate(image, img, x, y, (j - image.blockWidth), i, value1, value2, value3, value4);
         }
     }
-    if (posY == 0)
-    {
-        value1 = image.blocks[posBlock - 1].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock + blocksForWidth].value;
-        value4 = image.blocks[posBlock + blocksForWidth].value;
-    }
-    value1 = image.blocks[posBlock - 1].value;
-    value2 = image.blocks[posBlock].value;
-    value3 = image.blocks[posBlock + (blocksForWidth - 1)].value;
-    value4 = image.blocks[posBlock + blocksForWidth].value;
-    // printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+
+    valuesForThirdSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
     for (int i = image.blockHeight / 2; i < image.blockHeight; i++)
     {
         for (int j = 0; j < image.blockWidth / 2; j++)
@@ -243,11 +354,7 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
             calculate(image, img, x, y, j, (i - image.blockHeight), value1, value2, value3, value4);
         }
     }
-    value1 = image.blocks[posBlock].value;
-    value2 = image.blocks[posBlock + 1].value;
-    value3 = image.blocks[posBlock + blocksForWidth].value;
-    value4 = image.blocks[posBlock + (blocksForWidth + 1)].value;
-    // printf("\n%.2f %.2f %.2f %.2f \n", value1, value2, value3, value4);
+    valuesForFourthSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
     for (int i = image.blockHeight / 2; i < image.blockHeight; i++)
     {
         for (int j = image.blockWidth / 2; j < image.blockWidth; j++)
@@ -258,10 +365,17 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
             calculate(image, img, x, y, (j - image.blockWidth), (i - image.blockHeight), value1, value2, value3, value4);
         }
     }
+    // if (heightModified == true)
+    // {
+    //     image.blockHeight -= image.requiredPixelsHeight;
+    // }
+    // if (widhtModified == true)
+    // {
+    //     image.blockHeight -= image.requiredPixelsWidth;
+    // }
 }
 void LSC::applyValues(Image &image, cv::Mat &img)
 {
-    bool interpolate = false;
     for (int i = 0; i < blocksForHeight; i++)
     {
         for (int j = 0; j < blocksForWidth; j++)
@@ -279,9 +393,9 @@ void loadImage(Image &image)
 {
     // vignette-effect-lighthouse
 
-    const char *filename = "../eitvae.jpeg";
+    // const char *filename = "../eitvae.jpeg";
     // char *filename = "../30.jpg";
-    // char *filename = "../LSCOFF.jpg";
+    char *filename = "../LSCOFF.jpg";
     stbi_info(filename, &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
     unsigned char *imgData = stbi_load(filename, &image.width, &image.height, &image.channels, image.channels);
