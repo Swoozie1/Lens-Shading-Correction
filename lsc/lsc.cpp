@@ -34,8 +34,8 @@ public:
     int pixelMaxValue = 0;
     int blockWidth;
     int blockHeight;
-    // int requiredPixelsWidth;
-    // int requiredPixelsHeight;
+    int requiredPixelsWidth;
+    int requiredPixelsHeight;
     float averageBrightness;
 };
 
@@ -53,8 +53,8 @@ void fillImageData(Image &image)
     size_t offset = 0;
     image.blockHeight = image.height / blocksForHeight;
     image.blockWidth = image.width / blocksForWidth;
-    // image.requiredPixelsHeight = image.height % blocksForHeight;
-    // image.requiredPixelsWidth = image.width % blocksForWidth;
+    image.requiredPixelsHeight = image.height % blocksForHeight;
+    image.requiredPixelsWidth = image.width % blocksForWidth;
     unsigned char r = 0;
     unsigned char g = 0;
     unsigned char b = 0;
@@ -72,9 +72,11 @@ int getNormalizedvalues(Image &image)
     int max = 0;
     for (int i = 1; i < image.blocks.size(); i++)
     {
-        if (image.blocks[i].value > image.blocks[i - 1].value)
+        int a = image.blocks[i].value;
+        int b = image.blocks[i - 1].value;
+        if (a > b && a > max)
         {
-            max = image.blocks[i].value;
+            max = a;
         }
     }
     return max;
@@ -301,7 +303,7 @@ void valuesForFourthSubblock(float &value1, float &value2, float &value3, float 
         value4 = image.blocks[posBlock + blocksForWidth].value;
     }
 }
-void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
+void applyPixelValues(Image &image, cv::Mat &img, const int &posX, const int &posY, const int &blockWidth, const int &blockHeight)
 {
     int posBlock = posX + (posY * blocksForWidth);
     float value1 = image.blocks[posBlock - (blocksForWidth + 1)].value;
@@ -309,21 +311,10 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
     float value3 = image.blocks[posBlock - 1].value;
     float value4 = image.blocks[posBlock].value;
     valuesForFirstSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
-    // bool widhtModified = false;
-    // bool heightModified = false;
-    // if (posX == blocksForWidth - 1)
-    // {
-    //     image.blockWidth += image.requiredPixelsWidth;
-    //     widhtModified = true;
-    // }
-    // if (posY == blocksForHeight - 1)
-    // {
-    //     image.blockHeight += image.requiredPixelsHeight;
-    //     heightModified = true;
-    // }
-    for (int i = 0; i < image.blockHeight / 2; i++)
+
+    for (int i = 0; i < blockHeight / 2; i++)
     {
-        for (int j = 0; j < image.blockWidth / 2; j++)
+        for (int j = 0; j < blockWidth / 2; j++)
         {
             int x = (j + (posX * image.blockWidth));
             int y = (i + (posY * image.blockHeight));
@@ -332,9 +323,9 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
         }
     }
     valuesForSecondSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
-    for (int i = 0; i < image.blockHeight / 2; i++)
+    for (int i = 0; i < blockHeight / 2; i++)
     {
-        for (int j = image.blockWidth / 2; j < image.blockWidth; j++)
+        for (int j = blockWidth / 2; j < blockWidth; j++)
         {
             int x = (j + (posX * image.blockWidth));
             int y = (i + (posY * image.blockHeight));
@@ -344,9 +335,9 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
     }
 
     valuesForThirdSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
-    for (int i = image.blockHeight / 2; i < image.blockHeight; i++)
+    for (int i = blockHeight / 2; i < blockHeight; i++)
     {
-        for (int j = 0; j < image.blockWidth / 2; j++)
+        for (int j = 0; j < blockWidth / 2; j++)
         {
             int x = (j + (posX * image.blockWidth));
             int y = (i + (posY * image.blockHeight));
@@ -355,9 +346,9 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
         }
     }
     valuesForFourthSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
-    for (int i = image.blockHeight / 2; i < image.blockHeight; i++)
+    for (int i = blockHeight / 2; i < blockHeight; i++)
     {
-        for (int j = image.blockWidth / 2; j < image.blockWidth; j++)
+        for (int j = blockWidth / 2; j < blockWidth; j++)
         {
             int x = (j + (posX * image.blockWidth));
             int y = (i + (posY * image.blockHeight));
@@ -365,14 +356,6 @@ void applyPixelValues(Image &image, cv::Mat &img, int posX, int posY)
             calculate(image, img, x, y, (j - image.blockWidth), (i - image.blockHeight), value1, value2, value3, value4);
         }
     }
-    // if (heightModified == true)
-    // {
-    //     image.blockHeight -= image.requiredPixelsHeight;
-    // }
-    // if (widhtModified == true)
-    // {
-    //     image.blockHeight -= image.requiredPixelsWidth;
-    // }
 }
 void LSC::applyValues(Image &image, cv::Mat &img)
 {
@@ -380,8 +363,17 @@ void LSC::applyValues(Image &image, cv::Mat &img)
     {
         for (int j = 0; j < blocksForWidth; j++)
         {
-
-            applyPixelValues(image, img, j, i);
+            int blockWidth = image.blockWidth;
+            int blockHeight = image.blockHeight;
+            if (j == blocksForWidth - 1)
+            {
+                blockWidth += image.requiredPixelsWidth;
+            }
+            if (i == blocksForHeight - 1)
+            {
+                blockHeight += image.requiredPixelsHeight;
+            }
+            applyPixelValues(image, img, j, i, blockWidth, blockHeight);
         }
     }
 
