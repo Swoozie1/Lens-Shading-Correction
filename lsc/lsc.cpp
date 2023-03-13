@@ -130,6 +130,7 @@ void LSC::saveValues(const Image &image)
 }
 void LSC::loadValues(Image &image)
 {
+    image.blocks.clear();
     float value;
     std::fstream readFile;
     readFile.open("../genValues.txt", std::ios::in);
@@ -152,7 +153,7 @@ int clamp(int a, float b)
 {
     if (a * b > 255.f)
     {
-        return 255;
+        return 250;
     }
     else if (a * b < 0.f)
     {
@@ -163,7 +164,7 @@ int clamp(int a, float b)
         return int(a * b);
     }
 }
-void calculate(Image &image, cv::Mat &img, int &x, int &y, int j, int i, float &value1, float &value2, float &value3, float &value4)
+void calculate(Image &image, cv::Mat &img, const int &x, const int &y, const int &j, const int &i, float &value1, float &value2, float &value3, float &value4)
 {
     float horizontalValue1 = (float(image.blockWidth) * 0.5f + j) / float(image.blockWidth);
     float verticalValue1 = (float(image.blockHeight) * 0.5f + i) / float(image.blockHeight);
@@ -171,7 +172,6 @@ void calculate(Image &image, cv::Mat &img, int &x, int &y, int j, int i, float &
     float alpha2 = (horizontalValue1 * value4) + ((1.0f - horizontalValue1) * value3);
     float alphaFinal = (verticalValue1 * alpha2) + ((1.0f - verticalValue1) * alpha1);
     cv::Vec3b pix = img.at<cv::Vec3b>(cv::Point(x, y));
-    // pix[0] = pix[1] = pix[2] = clamp(255, alphaFinal);
     pix[2] = clamp(pix[2], alphaFinal);
     img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
 }
@@ -394,16 +394,13 @@ void loadImage(Image &image)
 }
 int main()
 {
-
     Image image;
     loadImage(image);
     LSC lsc;
     cv::Mat img(image.height, image.width, CV_8UC4, image.input.data());
     cv::cvtColor(img, img, cv::COLOR_RGB2HSV);
-
-    lsc.genValues(image, img);
-    lsc.saveValues(image);
-    image.blocks.clear();
+    // lsc.genValues(image, img);
+    // lsc.saveValues(image);
     lsc.loadValues(image);
     lsc.applyValues(image, img);
     stbi_write_jpg("../saved.jpeg", image.width, image.height, 4, image.input.data(), 100);
