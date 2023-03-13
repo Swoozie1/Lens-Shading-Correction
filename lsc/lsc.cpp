@@ -34,7 +34,7 @@ public:
     int requiredPixelsHeight;
     float averageBrightness;
 };
-
+//move this to header and cpp, this "main" is big enought.
 struct LSC
 {
     // move in Image
@@ -60,16 +60,22 @@ void fillImageData(Image &image)
         g = image.dataBuffer[offset + 1];
         b = image.dataBuffer[offset + 2];
         image.input.push_back({r, g, b});
-        offset += 3;
+        offset += 3; // are you sure? Is not the sizeof(Pixel) 4 bytes.
     }
 }
-int getNormalizedvalues(Image &image)
+
+// why is the functions called get normalized values, if it only getting the biggest one.
+int getNormalizedvalues(/*const*/ Image &image)
 {
     int max = 0;
+    // int b = 0;
     for (int i = 1; i < image.blocks.size(); i++)
     {
+        // you are always using the previous one.
+        // better reuse it, it is saved in catche, but what if it did not.
         int a = image.blocks[i];
         int b = image.blocks[i - 1];
+        // you already have chacked on the previous go, if b is greater than max (aka. the previous "a")
         if (a > b && a > max)
         {
             max = a;
@@ -77,7 +83,8 @@ int getNormalizedvalues(Image &image)
     }
     return max;
 }
-void genPixelValues(Image &image, cv::Mat &img, const int blockX, const int blockY)
+
+void genPixelValues(Image &image, /*const?*/ cv::Mat &img, const int blockX, const int blockY)
 {
     float blockBrightness = 0;
     for (int i = 0; i < image.blockHeight; i++)
@@ -86,6 +93,8 @@ void genPixelValues(Image &image, cv::Mat &img, const int blockX, const int bloc
         {
             int x = (j + (blockX * image.blockWidth));
             int y = (i + (blockY * image.blockHeight));
+            // you are getting a copy. Than why is img not const?
+            //But i think you can get it by refference.
             cv::Vec3b pixel = img.at<cv::Vec3b>(cv::Point(x, y));
             blockBrightness += pixel[2];
         }
@@ -128,11 +137,16 @@ void LSC::saveValues(const Image &image)
         writeFile.close();
     }
 }
+
+//what values, generic name.
 void LSC::loadValues(Image &image)
 {
     image.blocks.clear();
     float value;
     std::fstream readFile;
+    //why is it hard-coded here. 
+    // you are using it in save Values.
+    //better make it hard-coded global cosnt char *
     readFile.open("../genValues.txt", std::ios::in);
     if (!readFile)
     {
@@ -151,6 +165,9 @@ void LSC::loadValues(Image &image)
 }
 int clamp(int a, float b)
 {
+    //little change, but you are multiplying a and b 3 time in the worst case.
+    // int mult = a*b;
+    // if (mult > ..... that way you will skip additional computation.
     if (a * b > 255.f)
     {
         return 250;
@@ -164,6 +181,7 @@ int clamp(int a, float b)
         return int(a * b);
     }
 }
+// Generic name, please change it.
 void calculate(Image &image, cv::Mat &img, const int &x, const int &y, const int &j, const int &i, float &value1, float &value2, float &value3, float &value4)
 {
     float horizontalValue1 = (float(image.blockWidth) * 0.5f + j) / float(image.blockWidth);
@@ -179,6 +197,13 @@ void valuesForFirstSubblock(float &value1, float &value2, float &value3, float &
 {
     if (posY == 0 && posX == 0)
     {
+        //Make a struct containing values, what is the poin of passing 4 floats by reference if you are using them not everywhere.
+        //Struct Thibng {
+        //  float value1 
+        //  float value2
+        //  float value3
+        //  float value4
+        //}
         value1 = image.blocks[posBlock];
         value2 = image.blocks[posBlock];
         value3 = image.blocks[posBlock];
@@ -201,6 +226,11 @@ void valuesForFirstSubblock(float &value1, float &value2, float &value3, float &
 }
 void valuesForSecondSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
 {
+    // TODO: 
+    // You have 5 functions in total, which uses values1, values2 ....., why is this not contained in class
+    // as i mentioned make a simple struct and place this functions in the class.
+    // you have 8 arguments passed by reference.
+    // this way the code is not readable.
     value1 = image.blocks[posBlock - (blocksForWidth)];
     value2 = image.blocks[posBlock - (blocksForWidth - 1)];
     value3 = image.blocks[posBlock];
@@ -309,6 +339,9 @@ void applyPixelValues(Image &image, cv::Mat &img, const int &posX, const int &po
     float value4 = image.blocks[posBlock];
     valuesForFirstSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
 
+    
+    // you basically have 4 different for loops, which looks identical, but have differenct start and end conditions.
+    // moove to separate functions.
     for (int i = 0; i < blockHeight / 2; i++)
     {
         for (int j = 0; j < blockWidth / 2; j++)
@@ -338,7 +371,8 @@ void applyPixelValues(Image &image, cv::Mat &img, const int &posX, const int &po
         {
             int x = (j + (posX * image.blockWidth));
             int y = (i + (posY * image.blockHeight));
-
+            // look, how does it look, it would've been better if it was -> calculate(arg1, arg2);
+            // what is calcualte doing, you used the most generic name of all
             calculate(image, img, x, y, j, (i - image.blockHeight), value1, value2, value3, value4);
         }
     }
@@ -377,19 +411,23 @@ void LSC::applyValues(Image &image, cv::Mat &img)
     cv::cvtColor(img, img, cv::COLOR_HSV2BGR);
     cv::imwrite("../img4.jpg", img);
 }
-
+//when loading an image provide the name as a functions arg, so it could be reused.
 void loadImage(Image &image)
 {
     // vignette-effect-lighthouse
 
     // const char *filename = "../eitvae.jpeg";
     // char *filename = "../VIGN.jpg";
+    // Do not hardcore like this, because the function is not ussable right now, i can not pass different images, but use only one.
+    // When creating a project the client expects to build and run it, but i did not have any of  the dependecies. Test images should be git added
+    // to the repo.
     char *filename = "../LSCOFF.jpg";
     stbi_info(filename, &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
     unsigned char *imgData = stbi_load(filename, &image.width, &image.height, &image.channels, image.channels);
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
+    // this function is called load image. I expected, it would load an image from the disc and save it to byte buffer. or smth.
     fillImageData(image);
 }
 int main()
