@@ -9,11 +9,7 @@
 #include <fstream>
 const int blocksForWidth = 17;
 const int blocksForHeight = 13;
-struct Block
-{
-    float value;
-    Block(float value) : value{value} {}
-};
+
 struct Pixel
 {
     Pixel(unsigned char red, unsigned char green, unsigned char blue) : e{red, green, blue, 255} {}
@@ -24,7 +20,7 @@ class Image
 {
 public:
     std::vector<Pixel> input;
-    std::vector<Block> blocks;
+    std::vector<float> blocks;
     std::vector<uint8_t> dataBuffer;
 
     int width = 0;
@@ -44,7 +40,7 @@ struct LSC
     // move in Image
     void genValues(Image &image, cv::Mat &img);
     void saveValues(const Image &image);
-    void loadValues(Image &image, Block &block);
+    void loadValues(Image &image);
     void applyValues(Image &image, cv::Mat &img);
 };
 
@@ -72,8 +68,8 @@ int getNormalizedvalues(Image &image)
     int max = 0;
     for (int i = 1; i < image.blocks.size(); i++)
     {
-        int a = image.blocks[i].value;
-        int b = image.blocks[i - 1].value;
+        int a = image.blocks[i];
+        int b = image.blocks[i - 1];
         if (a > b && a > max)
         {
             max = a;
@@ -126,14 +122,15 @@ void LSC::saveValues(const Image &image)
     {
         for (int i = 0; i < image.blocks.size(); i++)
         {
-            float value = (1.0 / (float(image.blocks[i].value) / image.averageBrightness));
+            float value = (1.0 / (float(image.blocks[i]) / image.averageBrightness));
             writeFile << value << std::endl;
         }
         writeFile.close();
     }
 }
-void LSC::loadValues(Image &image, Block &block)
+void LSC::loadValues(Image &image)
 {
+    float value;
     std::fstream readFile;
     readFile.open("../genValues.txt", std::ios::in);
     if (!readFile)
@@ -146,8 +143,8 @@ void LSC::loadValues(Image &image, Block &block)
         int count = 0;
         while (readFile >> str)
         {
-            block.value = std::stof(str);
-            image.blocks.push_back(block);
+            value = std::stof(str);
+            image.blocks.push_back(value);
         }
     }
 }
@@ -182,134 +179,134 @@ void valuesForFirstSubblock(float &value1, float &value2, float &value3, float &
 {
     if (posY == 0 && posX == 0)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock];
     }
     else if (posY == 0)
     {
-        value1 = image.blocks[posBlock - 1].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock - 1].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock - 1];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock - 1];
+        value4 = image.blocks[posBlock];
     }
     else if (posX == 0)
     {
-        value1 = image.blocks[posBlock - blocksForWidth].value;
-        value2 = image.blocks[posBlock - blocksForWidth].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock - blocksForWidth];
+        value2 = image.blocks[posBlock - blocksForWidth];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock];
     }
 }
 void valuesForSecondSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
 {
-    value1 = image.blocks[posBlock - (blocksForWidth)].value;
-    value2 = image.blocks[posBlock - (blocksForWidth - 1)].value;
-    value3 = image.blocks[posBlock].value;
-    value4 = image.blocks[posBlock + 1].value;
+    value1 = image.blocks[posBlock - (blocksForWidth)];
+    value2 = image.blocks[posBlock - (blocksForWidth - 1)];
+    value3 = image.blocks[posBlock];
+    value4 = image.blocks[posBlock + 1];
     if (posY == 0 && posX == blocksForWidth - 1)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock];
     }
     else if (posY == 0)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock + 1].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock + 1].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock + 1];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock + 1];
     }
     else if (posX == blocksForWidth - 1)
     {
-        value1 = image.blocks[posBlock - blocksForWidth].value;
-        value2 = image.blocks[posBlock - blocksForWidth].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock - blocksForWidth];
+        value2 = image.blocks[posBlock - blocksForWidth];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock];
     }
 }
 void valuesForThirdSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
 {
-    value1 = image.blocks[posBlock - 1].value;
-    value2 = image.blocks[posBlock].value;
-    value3 = image.blocks[posBlock + (blocksForWidth - 1)].value;
-    value4 = image.blocks[posBlock + blocksForWidth].value;
+    value1 = image.blocks[posBlock - 1];
+    value2 = image.blocks[posBlock];
+    value3 = image.blocks[posBlock + (blocksForWidth - 1)];
+    value4 = image.blocks[posBlock + blocksForWidth];
     if (posY == 0 && posX == 0)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock + blocksForWidth].value;
-        value4 = image.blocks[posBlock + blocksForWidth].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock + blocksForWidth];
+        value4 = image.blocks[posBlock + blocksForWidth];
     }
     else if (posX == 0 && posY == blocksForHeight - 1)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock];
     }
     else if (posX == 0)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock + blocksForWidth].value;
-        value4 = image.blocks[posBlock + blocksForWidth].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock + blocksForWidth];
+        value4 = image.blocks[posBlock + blocksForWidth];
     }
 
     else if (posY == blocksForHeight - 1)
     {
-        value1 = image.blocks[posBlock - 1].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock - 1].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock - 1];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock - 1];
+        value4 = image.blocks[posBlock];
     }
 }
 void valuesForFourthSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image)
 {
-    value1 = image.blocks[posBlock].value;
-    value2 = image.blocks[posBlock + 1].value;
-    value3 = image.blocks[posBlock + blocksForWidth].value;
-    value4 = image.blocks[posBlock + (blocksForWidth + 1)].value;
+    value1 = image.blocks[posBlock];
+    value2 = image.blocks[posBlock + 1];
+    value3 = image.blocks[posBlock + blocksForWidth];
+    value4 = image.blocks[posBlock + (blocksForWidth + 1)];
 
     if (posY == 0 && posX == blocksForWidth - 1)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock + blocksForWidth].value;
-        value4 = image.blocks[posBlock + blocksForWidth].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock + blocksForWidth];
+        value4 = image.blocks[posBlock + blocksForWidth];
     }
     else if (posX == blocksForWidth - 1 && posY == blocksForHeight - 1)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock];
     }
     else if (posY == blocksForHeight - 1)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock + 1].value;
-        value3 = image.blocks[posBlock].value;
-        value4 = image.blocks[posBlock + 1].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock + 1];
+        value3 = image.blocks[posBlock];
+        value4 = image.blocks[posBlock + 1];
     }
 
     else if (posX == blocksForWidth - 1)
     {
-        value1 = image.blocks[posBlock].value;
-        value2 = image.blocks[posBlock].value;
-        value3 = image.blocks[posBlock + blocksForWidth].value;
-        value4 = image.blocks[posBlock + blocksForWidth].value;
+        value1 = image.blocks[posBlock];
+        value2 = image.blocks[posBlock];
+        value3 = image.blocks[posBlock + blocksForWidth];
+        value4 = image.blocks[posBlock + blocksForWidth];
     }
 }
 void applyPixelValues(Image &image, cv::Mat &img, const int &posX, const int &posY, const int &blockWidth, const int &blockHeight)
 {
     int posBlock = posX + (posY * blocksForWidth);
-    float value1 = image.blocks[posBlock - (blocksForWidth + 1)].value;
-    float value2 = image.blocks[posBlock - blocksForWidth].value;
-    float value3 = image.blocks[posBlock - 1].value;
-    float value4 = image.blocks[posBlock].value;
+    float value1 = image.blocks[posBlock - (blocksForWidth + 1)];
+    float value2 = image.blocks[posBlock - blocksForWidth];
+    float value3 = image.blocks[posBlock - 1];
+    float value4 = image.blocks[posBlock];
     valuesForFirstSubblock(value1, value2, value3, value4, posX, posY, posBlock, image);
 
     for (int i = 0; i < blockHeight / 2; i++)
@@ -386,28 +383,28 @@ void loadImage(Image &image)
     // vignette-effect-lighthouse
 
     // const char *filename = "../eitvae.jpeg";
-    // char *filename = "../30.jpg";
+    // char *filename = "../VIGN.jpg";
     char *filename = "../LSCOFF.jpg";
     stbi_info(filename, &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
     unsigned char *imgData = stbi_load(filename, &image.width, &image.height, &image.channels, image.channels);
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
+    fillImageData(image);
 }
 int main()
 {
 
     Image image;
     loadImage(image);
-    fillImageData(image);
+    LSC lsc;
     cv::Mat img(image.height, image.width, CV_8UC4, image.input.data());
     cv::cvtColor(img, img, cv::COLOR_RGB2HSV);
-    LSC lsc;
-    Block block(0);
+
     lsc.genValues(image, img);
     lsc.saveValues(image);
     image.blocks.clear();
-    lsc.loadValues(image, block);
+    lsc.loadValues(image);
     lsc.applyValues(image, img);
     stbi_write_jpg("../saved.jpeg", image.width, image.height, 4, image.input.data(), 100);
 
