@@ -6,18 +6,45 @@
 #include "lsc.hpp"
 #include "const.hpp"
 
-int main()
+int main(int argc, char *argv[])
 {
-    Image image;
-    image.loadImage(image);
-    LSC lsc;
-    cv::Mat img(image.height, image.width, CV_8UC4, image.input.data());
-    cv::cvtColor(img, img, cv::COLOR_RGB2HSV);
-    lsc.genValues(image, img);
-    lsc.saveValues(image);
-    image.blocks.clear();
-    lsc.loadValues(image);
-    lsc.applyValues(image, img);
-
+    if (argc > 1 && strcmp(argv[1], "createLSC") == 0)
+    {
+        for (int i = 2; i < argc; i++)
+        {
+            Image image;
+            image.loadImage(image, argv[i]);
+            LSC lsc;
+            cv::Mat img(image.height, image.width, CV_8UC4, image.input.data());
+            cv::cvtColor(img, img, cv::COLOR_RGB2HSV);
+            lsc.genBlockCoefficients(image, img);
+            lsc.saveBlockCoefficients(image);
+            image.blocks.clear();
+            lsc.loadBlockCoefficients(image);
+            lsc.applyBlockCoefficients(image, img, argv[i]);
+        }
+    }
+    else if (argc > 1 && strcmp(argv[1], "applyLSC") == 0)
+    {
+        FILE *file;
+        if (file = fopen("../genValues.txt", "r"))
+        {
+            fclose(file);
+            for (int i = 2; i < argc; i++)
+            {
+                Image image;
+                image.loadImage(image, argv[i]);
+                LSC lsc;
+                cv::Mat img(image.height, image.width, CV_8UC4, image.input.data());
+                cv::cvtColor(img, img, cv::COLOR_RGB2HSV);
+                lsc.loadBlockCoefficients(image);
+                lsc.applyBlockCoefficients(image, img, argv[i]);
+            }
+        }
+        else
+        {
+            std::cout << "No correction to be applyed." << std::endl;
+        }
+    }
     return 0;
 }

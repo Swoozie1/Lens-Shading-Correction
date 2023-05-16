@@ -2,7 +2,7 @@
 #include "const.hpp"
 #include "image.hpp"
 #include <fstream>
-void LSC::genValues(Image &image, cv::Mat &img)
+void LSC::genBlockCoefficients(Image &image, cv::Mat &img)
 {
     int count = 0;
     int pixelOnRow = 0;
@@ -15,9 +15,9 @@ void LSC::genValues(Image &image, cv::Mat &img)
         }
     }
 
-    image.averageBrightness = image.getNormalizedvalues(image);
+    image.maxBrightness = image.getNormalizedvalues(image);
 }
-void LSC::saveValues(const Image &image)
+void LSC::saveBlockCoefficients(const Image &image)
 {
     std::fstream writeFile;
     writeFile.open("../genValues.txt", std::ios::out);
@@ -29,13 +29,13 @@ void LSC::saveValues(const Image &image)
     {
         for (int i = 0; i < image.blocks.size(); i++)
         {
-            float value = (1.0 / (float(image.blocks[i]) / image.averageBrightness));
+            float value = (1.0 / (float(image.blocks[i]) / image.maxBrightness));
             writeFile << value << std::endl;
         }
         writeFile.close();
     }
 }
-void LSC::loadValues(Image &image)
+void LSC::loadBlockCoefficients(Image &image)
 {
     float value;
     std::fstream readFile;
@@ -56,7 +56,7 @@ void LSC::loadValues(Image &image)
     }
 }
 
-void LSC::applyValues(Image &image, cv::Mat &img)
+void LSC::applyBlockCoefficients(Image &image, cv::Mat &img, const char *filename)
 {
     for (int i = 0; i < blocksForHeight; i++)
     {
@@ -77,5 +77,8 @@ void LSC::applyValues(Image &image, cv::Mat &img)
     }
 
     cv::cvtColor(img, img, cv::COLOR_HSV2BGR);
-    cv::imwrite("../img4.jpg", img);
+    std::string lsced = "../LSCED";
+    std::string finalname = lsced + &filename[3];
+    std::cout << filename << " " << finalname;
+    cv::imwrite(finalname, img);
 }

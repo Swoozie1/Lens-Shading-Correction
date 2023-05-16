@@ -4,8 +4,8 @@
 struct LSC
 {
     // move in Image
-    void genValues(Image &image, cv::Mat &img);
-    void saveValues(const Image &image);
-    void loadValues(Image &image);
-    void applyValues(Image &image, cv::Mat &img);
+    void genBlockCoefficients(Image &image, cv::Mat &img);
+    void saveBlockCoefficients(const Image &image);
+    void loadBlockCoefficients(Image &image);
+    void applyBlockCoefficients(Image &image, cv::Mat &img, const char *filename);
 };

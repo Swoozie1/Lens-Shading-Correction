@@ -29,13 +29,13 @@ public:
     int blockHeight;
     int requiredPixelsWidth;
     int requiredPixelsHeight;
-    float averageBrightness;
+    float maxBrightness;
 
     void fillImageData(Image &image);
     int getNormalizedvalues(Image &image);
     void genPixelValues(Image &image, cv::Mat &img, const int blockX, const int blockY);
     void applyPixelValues(Image &image, cv::Mat &img, const int &posX, const int &posY, const int &blockWidth, const int &blockHeight);
-    void loadImage(Image &image);
+    void loadImage(Image &image, const char *name);
     void valuesForFirstSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image);
     void valuesForSecondSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image);
     void valuesForThirdSubblock(float &value1, float &value2, float &value3, float &value4, const int &posX, const int &posY, const int &posBlock, const Image &image);

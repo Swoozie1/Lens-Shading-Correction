@@ -155,7 +155,7 @@ int clamp(int a, float b)
 {
     if (a * b > 255.f)
     {
-        return 255;
+        return 250;
     }
     else if (a * b < 0.f)
     {
@@ -178,16 +178,12 @@ void Image::calculate(Image &image, cv::Mat &img, int &x, int &y, int j, int i, 
     img.at<cv::Vec3b>(cv::Point(x, y)) = pix;
 }
 
-void Image::loadImage(Image &image)
+void Image::loadImage(Image &image, const char *name)
 {
-    // vignette-effect-lighthouse
 
-    // const char *filename = "../eitvae.jpeg";
-    // char *filename = "../VIGN.jpg";
-    char *filename = "../LSCOFF.jpg";
-    stbi_info(filename, &image.width, &image.height, &image.channels);
+    stbi_info(name, &image.width, &image.height, &image.channels);
     image.dataBuffer.resize(image.width * image.height * image.channels);
-    unsigned char *imgData = stbi_load(filename, &image.width, &image.height, &image.channels, image.channels);
+    unsigned char *imgData = stbi_load(name, &image.width, &image.height, &image.channels, image.channels);
     memcpy(image.dataBuffer.data(), imgData, image.dataBuffer.size());
     stbi_image_free(imgData);
     fillImageData(image);
